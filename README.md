@@ -14,9 +14,10 @@ C64 or Atari. It has been redeveloped from scratch including graphics,
 sound effects and game mechanics.
 
 The game can be played with a Nunchuk or with the keyboard
-	    Nunchuk	Keyboard
-Controls    joystick	cursor keys
-Fire	    Button z	Key 'a'
+
+		    Nunchuk	Keyboard
+	Controls    joystick	cursor keys
+	Fire	    Button z	Key 'a'
 
 To change the orientation of the helicopter move the joystick in the
 desired direction and press fire button for 1-2 seconds. This way you
