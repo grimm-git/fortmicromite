@@ -20,8 +20,8 @@ The game can be played with a Nunchuk or with the keyboard
 	Fire	    Button z	Key 'a'
 
 To change the orientation of the helicopter move the joystick in the
-desired direction and press fire button for 1-2 seconds. This way you
-an fly backwards or turn the helicopter.
+desired direction and hold it for 1-2 seconds until the helicopter
+changed direction.
 
 To board people just land close to them. After landing they will
 start running towards the helicopter.
