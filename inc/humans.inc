@@ -27,20 +27,20 @@ end sub
 
 ' Set a group of humans in the map and distributes them
 ' cnt% = how many humans should be set
-' y% = map block to put the humans on (top)
+' y! = y-coordiate where the humans walk
 ' xmin%, xmax% = movement area of humans
-sub Humans.set(cnt%,y%,xmin%,xmax%)
+sub Humans.set(cnt%,y!,xmin%,xmax%)
   LOCAL Integer idx,n
   LOCAL Float r=RND,minX,maxX
   
-  minX=xmin%*MAPTILESIZE
-  maxX=(xmax%+1)*MAPTILESIZE
+  minX=xmin%*MAPTILESIZE+4
+  maxX=(xmax%+1)*MAPTILESIZE-4
 
   for n=0 to cnt%-1
     idx=Humans.next
     Humans.state(idx)=STATE_STANDING
     Humans.X(idx)=minX+(maxX-minX)*RND
-    Humans.Y(idx)=y%*MAPTILESIZE-Human.H/2+2
+    Humans.Y(idx)=y!-Human.H/2
     Humans.minX(idx)=minX
     Humans.maxX(idx)=maxX
     Humans.dX(idx)=0
@@ -51,29 +51,28 @@ end sub
 
 sub Humans.draw()
   STATIC Float interval=TIMER,cnt=0
-  LOCAL Integer n,x,action,idx
+  LOCAL Integer z,n,x,action,idx
   LOCAL Float dist
 
   if TIMER-interval>SPEED_HUMANS then interval=TIMER:action=1
   if action then inc cnt:if cnt>29 then cnt=0
 
-  for n=0 to Humans.next-1
+  n=0
+  for z=0 to Humans.next-1
     markOnRadar Humans.X(n)*Radar.Sx,(Humans.Y(n)-Human.H/4)*Radar.Sy
 
     if action=1 then
       if Heli.landed(0) and abs(Humans.Y(n)-Heli.Y(0))<8 then
         dist=distanceX(Humans.X(n),Heli.X(0))
-'        dist=pfxToVPx!(Humans.X(n))-pfxToVPx!(Heli.X(0))
         Humans.dX(n)=choice(dist<0,1,-1)
         inc Humans.X(n),Humans.dX(n)
 
         if abs(dist)<2 then
-          if Humans.next>0 then
-            Humans.copy n
-            inc n,-1
-          endif
+          Humans.copy Humans.next-1,n
+          inc Humans.next,-1
           inc Player.Rescued
           inc Player.Score,50
+          Game.showMsg str$(Level.Humans-Player.Rescued)+" HUMANS TO RESCUE",1500
           PlaySample 1,22050
           continue for
         elseif Humans.X(n)>Humans.maxX(n) then
@@ -118,6 +117,7 @@ sub Humans.draw()
 
       Humans.toScreen n,idx,Humans.X(n),Humans.Y(n)
     endif
+    inc n
   next
 end sub
 
@@ -132,17 +132,15 @@ sub Humans.toScreen(t%,idx%,x!,y!)
   blit 180+c*Human.W,r*Human.H,_x,_y,Human.W,Human.H,PAGE_SPRITES,dir
 end sub
 
-sub Humans.copy(idxTo%)
-  LOCAL Integer idxFrom
+sub Humans.copy(idxFrom%,idxTo%)
+  if idxFrom%=idxTo% then exit sub
 
-  idxFrom=Humans.next-1
-  Humans.state(idxTo%)=Humans.state(idxFrom)
-  Humans.X(idxTo%)=Humans.X(idxFrom)
-  Humans.Y(idxTo%)=Humans.Y(idxFrom)
-  Humans.minX(idxTo%)=Humans.minX(idxFrom)
-  Humans.maxX(idxTo%)=Humans.maxX(idxFrom)
-  Humans.idx(idxTo%)=Humans.idx(idxFrom)
-  Humans.dX(idxTo%)=Humans.dX(idxFrom)
-  inc Humans.next,-1
+  Humans.state(idxTo%)=Humans.state(idxFrom%)
+  Humans.X(idxTo%)=Humans.X(idxFrom%)
+  Humans.Y(idxTo%)=Humans.Y(idxFrom%)
+  Humans.minX(idxTo%)=Humans.minX(idxFrom%)
+  Humans.maxX(idxTo%)=Humans.maxX(idxFrom%)
+  Humans.idx(idxTo%)=Humans.idx(idxFrom%)
+  Humans.dX(idxTo%)=Humans.dX(idxFrom%)
 end sub
 

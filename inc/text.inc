@@ -5,14 +5,16 @@ DIM number$(9)
 DIM alpha$(25)
 
 sub prt(x!,y!,msg$,col!,ln%)
-  LOCAL tmp$
+  LOCAL String tmp$
+  LOCAL Float _x=x!
 
   tmp$=txt$(msg$)
   if ln%>0 then
     if len(tmp$)<ln% then tmp$=space$(ln%-len(tmp$))+tmp$
   endif
+  if _x=-1 then _x=20-len(tmp$)/2        
 
-  text x!*8,y!*8,tmp$,"L",8,,col!
+  text _x*8,y!*8,tmp$,"L",8,,col!
 end sub
 
 sub prt0(x!,y!,msg$,col!)
@@ -30,7 +32,9 @@ function txt$(in$)
 
   for i%=1 to len(in$)
     c% = asc(mid$(in$,i%,1))
-    if c%=asc("(") then
+    if c%=asc("/") then
+      out$=out$+","
+    elseif c%=asc("(") then
       out$=out$+"/"
     elseif c%=asc(")") then
       out$=out$+"@"

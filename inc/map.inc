@@ -7,7 +7,7 @@ CONST MAXBRICKS=14
 DIM Integer Map.W=100
 DIM Integer Map.H=18
 DIM Integer Map.map(Map.W,Map.H)
-DIM Integer Map.Masks(255)
+DIM Integer Map.Masks(240)
 DIM Integer Map.Brick.Idx(MAXBRICKS)
 DIM Integer Map.Brick.Suc(MAXBRICKS,3)
 
@@ -46,6 +46,7 @@ sub Map.draw()
   LOCAL Integer sx,sy,tx,ty
 
   PAGE write FRAMEBUFFER
+  cls
   for r%=0 to Map.H-1
     for c%=0 to Map.W-1
       tile%=Map.map(c%,r%)
@@ -57,7 +58,7 @@ sub Map.draw()
       endif
     next
   next
-  PAGE write Game.PBuffer
+  PAGE write PAGE_BUFFER
 end sub
 
 sub Map.putTile(idx%,c%,r%)
@@ -69,9 +70,9 @@ sub Map.putTile(idx%,c%,r%)
     sy=int(idx%/20)*MAPTILESIZE
     tx=c%*MAPTILESIZE
     ty=r%*MAPTILESIZE
-    blit sx,sy,tx,ty,MAPTILESIZE,MAPTILESIZE,PAGE_TILESET,&B0
+    blit sx,sy,tx,ty,MAPTILESIZE,MAPTILESIZE,PAGE_TILESET,0
   endif
-  PAGE write Game.PBuffer
+  PAGE write PAGE_BUFFER
 end sub
 
 ' x,y = playfield coordinates
@@ -79,7 +80,7 @@ function Map.collision%(x!,y!,w%,h%)
   LOCAL Float _x=x!,_y=y!
   LOCAL Integer tx,ty,_tx,_ty,tile,mask
   LOCAL Integer shot,q,idx,suc
-  LOCAL Float dx,dy,sw
+[MAP]  LOCAL Float dx,dy,sw
 
   _x=rnX(x!)
   if _y<0 then exit function
@@ -94,20 +95,18 @@ function Map.collision%(x!,y!,w%,h%)
       if _ty<0 or _ty>Map.H-1 then error "ERROR: _ty="+str$(_ty)+" ty="+str$(ty)
       tile=Map.map(_tx,_ty)
 
-      if DEBUG_MAP=1 then
-        dx=pfxToVPx!(x!)
-        dy=pfyToVPy!(y!)
-        frame (Screen.VPx+dx,Screen.VPy+dy,w%,h%)
-        dx=pfxToVPx!(_tx*MAPTILESIZE)
-        dy=pfyToVPy!(_ty*MAPTILESIZE)
-        frame (Screen.VPx+dx,Screen.VPy+dy,MAPTILESIZE,MAPTILESIZE)
-        text Screen.VPx+dx+8,Screen.VPy+dy+6,str$(tile),"C",7
-        if sw=0 then
-          sw=1
-          text Screen.VPx+dx-16,Screen.VPy+dy+6,str$(_ty),"C",7
-          text Screen.VPx+dx+8,Screen.VPy+dy-16,str$(_tx),"C",7
-        endif
-      endif
+[MAP]   dx=pfxToVPx!(x!)
+[MAP]   dy=pfyToVPy!(y!)
+[MAP]   frame (Screen.VPx+dx,Screen.VPy+dy,w%,h%)
+[MAP]   dx=pfxToVPx!(_tx*MAPTILESIZE)
+[MAP]   dy=pfyToVPy!(_ty*MAPTILESIZE)
+[MAP]   frame (Screen.VPx+dx,Screen.VPy+dy,MAPTILESIZE,MAPTILESIZE)
+[MAP]   text Screen.VPx+dx+8,Screen.VPy+dy+6,str$(tile),"C",7
+[MAP]   if sw=0 then
+[MAP]     sw=1
+[MAP]     text Screen.VPx+dx-16,Screen.VPy+dy+6,str$(_ty),"C",7
+[MAP]     text Screen.VPx+dx+8,Screen.VPy+dy-16,str$(_tx),"C",7
+[MAP]   endif
       
       if shot then
         select case tile
@@ -125,7 +124,7 @@ function Map.collision%(x!,y!,w%,h%)
               Map.collision%=0   'hit a hole in the brick
               exit function
             endif
-          case 57 to 59:
+          case 57 to 59,7,11,139:
             Map.collision%=0   'laser don't stop bullets
             exit function
           case 180 to 192:
@@ -133,7 +132,16 @@ function Map.collision%(x!,y!,w%,h%)
               Map.collision%=0
               exit function
             endif
-            Event.MVBLK.dir=Event.MVBLK.dir*-1
+            Fx.MVBLK.dir=Fx.MVBLK.dir*-1
+          case 2,3:
+            Map.collision%=1
+            exit function
+          case 212,213,232,233:  'Reaktor
+            if Game.ReactorHits<MAXREACTORHITS then
+              inc Game.ReactorHits
+            else
+              set Game.Requests,REQ_REACTOREX
+            endif
         end select
       else
         select case tile
@@ -141,6 +149,11 @@ function Map.collision%(x!,y!,w%,h%)
             set Game.Requests,REQ_FUELING
           case 2:
             Heli.Y(0)=ty*MAPTILESIZE+9
+            Heli.landed(0)=1
+            Map.collision%=0
+            exit function
+          case 3:
+            Heli.Y(0)=ty*MAPTILESIZE+7
             Heli.landed(0)=1
             Map.collision%=0
             exit function
@@ -161,29 +174,38 @@ function Map.collision%(x!,y!,w%,h%)
             Map.prepareLevelExit
             Map.collision%=0
             exit function
-          case 91:
-            if 224>ty*MAPTILESIZE then
+          case 91,223:
+            if Map.getDirection(_tx,_ty,Heli.X(0),Heli.Y(0))<3 then
               Heli.Y(0)=ty*MAPTILESIZE+9
               Heli.landed(0)=1
               Player.saveSpawnPt
               Map.collision%=0
               exit function
             endif
-          case 57:
-            if cmap.get(128)=0 then
-              Map.collision%=0
-              exit function
-            endif
-          case 58:
+          case 57:  'Laser -45 Grad
             if cmap.get(129)=0 then
               Map.collision%=0
               exit function
             endif
-          case 59:
+          case 58:  'Laser 45 Grad
+            if cmap.get(128)=0 then
+              Map.collision%=0
+              exit function
+            endif
+          case 59,7,138,139:  'Laser
             if cmap.get(128)+cmap.get(129)=0 then
               Map.collision%=0
               exit function
             endif
+          case 11:   'Laser 2nd set
+            if cmap.get(144)+cmap.get(145)=0 then
+              Map.collision%=0
+              exit function
+            endif
+          case 198,218,248:
+            set Game.Requests,REQ_PORTAL
+            Map.collision%=0
+            exit function
           case 180 to 192:
             if cmap.get(tile-49)=0 then
               Map.collision%=0
@@ -197,10 +219,13 @@ function Map.collision%(x!,y!,w%,h%)
         if mask AND Map.Masks(tile) then
           if shot then
             select case tile
-              case 115:
+              case 115:               'Drone
                 playSample 15,22050
                 Map.map(_tx,_ty)=-1
                 Map.putTile 0,_tx,_ty
+              case 212,213,232,233:   'Reaktor
+                dx=Screen.VPx+pfxToVPx!(800):dy=Screen.VPy+pfyToVpy!(175)
+                circle dx,dy,Game.ReactorHits/MAXREACTORHITS*6+2,,,map(WHITE),map(WHITE)
             end select
           endif
           Map.collision%=1
@@ -213,6 +238,25 @@ function Map.collision%(x!,y!,w%,h%)
     _ty=ty:inc tx
   loop while _x+w%>tx*MAPTILESIZE
   Map.collision%=0
+end function
+
+function Map.getDirection(tx%,ty%,x!,y!) as Integer
+  LOCAL Float col=2,row=2
+  LOCAL Integer _tx=tx%*MAPTILESIZE,_ty=ty%*MAPTILESIZE
+
+  if x!<_tx then
+    col=0
+  elseif x!<_tx+MAPTILESIZE then
+    col=1
+  endif
+
+  if y!<_ty then
+    row=0
+  elseif y!<_ty+MAPTILESIZE then
+    row=1
+  endif
+
+  Map.getDirection=row*3+col
 end function
 
 sub Map.prepareFuelStation
@@ -336,9 +380,9 @@ sub Map.prepareBricks
 end sub
 Bricks: '0  1  2  3     '01
 DATA 60,61,62,64,63     '23
-DATA 61,61,65,68,113
+DATA 61,61,65,68,99
 DATA 62,65,62,114,66
-DATA 63,113,66,67,63
+DATA 63,99,66,67,63
 DATA 64,68,114,64,67
 DATA 65,65,65,98,69
 DATA 66,69,66,70,66

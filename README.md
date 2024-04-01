@@ -1,6 +1,7 @@
 # Fort Micromite
 This is a game written in MMBasic for the Color Maximite 2 (CMM2)
-It is work in progress but the first level fully is playable.
+It is work in progress but it is feature complete. Only balancing
+and optimisation activities are missing.
 
 The goal of the game is to enter the base of Dr.Evil with your helicopter
 and destroy the base by blowing up the reactor which is deeply burried
@@ -13,13 +14,13 @@ C64 or Atari. It has been redeveloped from scratch including graphics,
 sound effects and game mechanics.
 
 The game can be played with a Nunchuk or with the keyboard
-	    Nunchuk	Keyboard
-Controls    joystick	cursor keys
-Fire	    Button z	Key 'a'
+		    Nunchuk	Keyboard
+    Controls	    joystick	cursor keys
+    Fire	    Button z	Key 'a'
 
 To change the orientation of the helicopter move the joystick in the
-desired direction and press fire button for 1-2 seconds. This way you
-an fly backwards or turn the helicopter.
+desired direction and hold it for 1-2 seconds until the helicopter
+changed orientation.
 
 To board people just land close to them. After landing they will
 start running towards the helicopter.

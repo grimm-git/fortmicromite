@@ -13,6 +13,8 @@ DIM Float   Heli.Core.X(4)= (-18,-20,-5,-14,-13)  'relative to Heli's center
 DIM Float   Heli.Core.Y(4)= ( -5, -1,-1, -1, -5)
 DIM Float   Heli.Core.W(4)= ( 32, 33,10, 33, 32)
 DIM Float   Heli.Core.H(4)= ( 15, 11,11, 11, 15)
+DIM Integer Heli.ofsB
+DIM Integer Heli.ofsE
 
 DIM Integer Heli.Trigger    'last trigger event
 
@@ -55,6 +57,8 @@ sub Heli.reset(no%,x!,y!)
   Heli.dir(no%)=&B100
   Heli.landed(no%)=0
   Heli.Speed(no%)=HELI_SPEEDFLIGHT
+  Heli.ofsB=0
+  Heli.ofsE=0
 
   for t=0 to HELI_MAXSHOTS-1
     Heli.Shots.life(no%,t)=0
@@ -109,8 +113,8 @@ sub Heli.toHover(no%)            '0 1 2 3 4 5
 
   if Heli.trs(no%)=0 then Heli.setState(no%,hoverStates(Heli.State(no%)))
 
-  Player.dX=Player.dX*0.96:if abs(Player.dX)<0.0001 then Player.dX=0  'Air drag
-  Player.dY=Player.dY*0.96:if abs(Player.dY)<0.0001 then Player.dY=0  'Air drag
+  Player.dX=Player.dX*0.96:if abs(Player.dX)<0.001 then Player.dX=0  'Air drag
+  Player.dY=Player.dY*0.90:if abs(Player.dY)<0.001 then Player.dY=0  'Air drag
   if Player.dY=0 then Player.dY=1/9.81 'Gravitation
   if Heli.landed(no%)=1 then Player.dY=0
 end sub
@@ -185,11 +189,8 @@ sub Heli.draw()
       x=Heli.X(t)+Heli.Core.X(idx)
       y=Heli.Y(t)+Heli.Core.Y(idx)
       if Map.collision%(x,y,Heli.Core.W(idx),Heli.Core.H(idx)) then
-        if DEBUG_HELI then
-          text 0,60,"Heli destroyed! "+str$(t),"L",7
-        else
-          Heli.destroy(t)
-        endif
+[DBG] text 0,60,"Heli destroyed!","L",7
+[INV] Heli.destroy(t)
       elseif Drones.isHit(x,y,Heli.Core.W(idx),Heli.Core.H(idx))<>-1 then
         Heli.destroy(t)
       endif
@@ -220,23 +221,28 @@ end sub
 
 sub Heli.toScreen(t%,idx%,x!,y!)
   LOCAL Float _x=x!,_y=y!
-  LOCAL Integer c,r
+  LOCAL Integer c,r,st,dx,dw
+
+  if Heli.ofsE>0 then
+    st=Heli.State(t%)-1
+    dw=Heli.ofsE+(Heli.W-Heli.Core.W(st))/2-2
+  elseif Heli.ofsB>0 then
+    dw=Heli.ofsB
+  endif
 
   if t%>0 then inc idx%,choice(idx%>23,2,12)
   c=idx% mod 4:r=int(idx%/4)
 
-  _x=Screen.VPx+pfxToVPx!(x!)-Heli.W/2
+  _x=Screen.VPx+pfxToVPx!(x!)-Heli.W/2+Heli.ofsE
   _y=Screen.VPy+pfyToVPy!(y!)-Heli.H/2
-  blit c*Heli.W,r*Heli.H,_x,_y,Heli.W,Heli.H,PAGE_SPRITES,Heli.dir(t%)
+  blit c*Heli.W+Heli.ofsB,r*Heli.H,_x,_y,Heli.W-dw,Heli.H,PAGE_SPRITES,Heli.dir(t%)
 
-  if DEBUG_HELI then
-    LOCAL Integer i=Heli.State(t%)-1
-    if i>=0 then
-      frame(_x+Heli.Core.X(i)+Heli.W/2,_y+Heli.Core.Y(i)+Heli.H/2,Heli.Core.W(i),Heli.Core.H(i))
-      text _x,_y+Heli.Core.Y(i)+Heli.H/2,str$(x!,4,2),"R",7,,,-1
-      text _x+Heli.Core.X(i)+Heli.W/2,_y,str$(y!,4,2),"L",7,,,-1
-    endif
-  endif
+[HXY]  LOCAL Integer i=Heli.State(t%)-1
+[HXY]  if i>=0 then
+[HXY]    frame(_x+Heli.Core.X(i)+Heli.W/2,_y+Heli.Core.Y(i)+Heli.H/2,Heli.Core.W(i),Heli.Core.H(i))
+[HXY]    text _x,_y+Heli.Core.Y(i)+Heli.H/2,str$(x!,4,2),"R",7,,,-1
+[HXY]    text _x+Heli.Core.X(i)+Heli.W/2,_y,str$(y!,4,2),"L",7,,,-1
+[HXY]  endif
 end sub
 
 sub Heli.drawShot(x!,y!,hit%)

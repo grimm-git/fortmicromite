@@ -8,31 +8,44 @@ CONST STATE_DEAD=3
 CONST STATE_PLAYER=4
 CONST STATE_LEVEL=5
 CONST STATE_OVER=6
+CONST STATE_CUTSCENE=7
+CONST STATE_VICTORY=8
 
+CONST PAGE_DISPLAY=0
+CONST PAGE_BUFFER=1
 CONST PAGE_SPRITES=2
+CONST PAGE_DASHBRD=3
 CONST PAGE_TILESET=10
 CONST PAGE_RADAR=11
 
 CONST REQ_FUELING=0  'request
-CONST ACQ_FUELING=1  'acknowledge
-CONST REQ_NEXTLVL=2
-CONST ACQ_NEXTLVL=3
-CONST REQ_SPAWNFOE=4
-CONST ACQ_SPAWNFOE=5
-CONST REQ_SPAWNTANKS=6
-CONST ACQ_SPAWNTANKS=7
+CONST REQ_NEXTLVL=1
+CONST REQ_SPAWNFOE=2
+CONST REQ_SPAWNTANKS=3
+CONST REQ_SHOWSTATUS=4
+CONST REQ_PORTAL=5
+CONST REQ_REACTOREX=6
+
+CONST ACQ_FUELING=16  'acknowledge
+CONST ACQ_NEXTLVL=17
+CONST ACQ_SPAWNFOE=18
+CONST ACQ_SPAWNTANKS=19
+CONST ACQ_PORTAL=20
+CONST ACQ_REACTOREX=21
 
 
 DIM Float frameTimer
 
 DIM Integer Game.State      ' Default=STATE_INTRO
 DIM Integer Game.Requests   ' bit field
-DIM Integer Game.PDisplay=0
-DIM Integer Game.PBuffer=1
 DIM Float   Game.frameTime=1
 DIM Float   Game.updateTime
-DIM Integer Game.Controls  ' 0=keyboard, 1=Nunchuk
-DIM Integer Game.Level=1   ' levels start with 1
+DIM Integer Game.Controls   ' 0=keyboard, 1=Nunchuk
+DIM Integer Game.Level      ' levels start with 1
+DIM String  Game.StatusMsg$
+DIM Float   Game.StatusTime
+DIM Integer Game.Reactor
+DIM Integer Game.ReactorHits
 
 sub Game.init()
   Controls.init
@@ -48,12 +61,15 @@ end sub
 ' 3 : dashboard
 '10 : level tile set
 sub Game.loadAssets()
-  load data "img/sprites.raw", MM.INFO(page address 2)
+  LOCAL Integer n
+
+  load data "img/sprites.raw", MM.INFO(page address PAGE_SPRITES)
   load font PWD$+"/apocalypse.fnt"
-  cmap.load "palette.cmap"
+  cmap.load "img/palette.cmap"
   cmap.activate
 
-  PAGE write 3:cls:Game.drawDash
+  PAGE write PAGE_DASHBRD:cls:Game.drawDash
+  PAGE write PAGE_BUFFER
 end sub
 
 sub Game.new
@@ -66,6 +82,8 @@ sub Game.new
   Game.State=STATE_INTRO
   Game.Requests=0
   Game.Level=1
+  Game.Reactor=1
+  Game.ReactorHits=0
 end sub
 
 sub Game.clrScreen
@@ -73,16 +91,16 @@ sub Game.clrScreen
 
   frameTimer=TIMER
 
-  blit 0,0,0,0,Screen.W,Screen.VPy,3,0 'Dashboard
   if Playfield.VPx>(Playfield.W-VP.W) then ox=Playfield.VPx-Playfield.W+VP.W
   blit Playfield.VPx,Playfield.VPy,Screen.VPx,Screen.VPy,VP.W-ox,VP.H,FRAMEBUFFER,0
   if ox>0 then blit 0,Playfield.VPy,Screen.VPx+VP.W-ox,Screen.VPy,ox,VP.H,FRAMEBUFFER,0
-  Game.drawRadar
 end sub
 
 sub Game.draw
   STATIC Float timer1=TIMER, interval1=10
+  STATIC Integer blast
   LOCAL Integer foe,t
+  LOCAL Float col
   LOCAL Float _x,_y
 
   if Game.State=STATE_GAME or Game.State=STATE_DEMO then
@@ -105,11 +123,17 @@ sub Game.draw
     if tst(Game.Requests,REQ_NEXTLVL) then
       Map.LevelExit
     elseif tst(Game.Requests,ACQ_NEXTLVL) then
-      playSample 8,22050,1
       clr Game.Requests,ACQ_NEXTLVL
       inc Game.Level
-      Level.next Game.Level
-      Game.State=STATE_LEVEL
+      if Game.Level>LEVEL_CNT then
+        Game.State=STATE_VICTORY
+      else
+        playSample 8,22050,1
+        Level.next Game.Level
+        Playfield.VPx=Player.SpawnPt(2)
+        Playfield.VPy=Player.SpawnPt(3)
+        Game.State=STATE_LEVEL
+      endif
     endif
 
     if tst(Game.Requests,ACQ_SPAWNFOE) then
@@ -134,23 +158,64 @@ sub Game.draw
       endif
     endif
 
-'   Show Trigger areas
-'    for t=0 to Trigger.next-1
-'      _x=Screen.VPx+pfxToVPx!(Trigger.X(t))
-'      _y=Screen.VPy+pfyToVPy!(Trigger.Y(t))
-'      frame _x,_y,Trigger.W(t),Trigger.H(t)
-'    next
+    if tst(Game.Requests,ACQ_REACTOREX) then
+      if blast<64 then
+        _x=Screen.VPx+pfxToVPx!(800):_y=Screen.VPy+pfyToVPy!(175)
+        col=choice(blast AND 1,0,7)
+        circle _x,_y,104,0,0.833,map(col),map(col)
+        inc blast
+      else      
+        Particle.draw
+        if sprite(N)=0 then
+          explosion.add 800,175
+          clr Game.Requests,REQ_REACTOREX
+          clr Game.Requests,ACQ_REACTOREX
+          sprite close all
+          Game.Reactor=0
+          Fx.powerOFF
+          Map.putTile 78,49,17:Map.map(49,17)=78
+          Map.putTile 79,50,17:Map.map(50,17)=79
+        endif
+      endif
+    elseif tst(Game.Requests,REQ_REACTOREX) then
+      set Game.Requests,ACQ_REACTOREX
+      Particle.prepReactor
+      Particle.show
+    endif
+
+    if tst(Game.Requests,ACQ_PORTAL) then
+    elseif tst(Game.Requests,REQ_PORTAL) then
+      set Game.Requests,ACQ_PORTAL
+      Portal.State=STATE_IN
+      Game.State=STATE_CUTSCENE
+    endif
+
+    if tst(Game.Requests,REQ_SHOWSTATUS) then
+      prt -1,6,Game.StatusMsg$,map(PURPLE)
+      if TIMER-Game.StatusTime>0 then clr Game.Requests,REQ_SHOWSTATUS
+    endif
+
+[TRG]  for t=0 to Trigger.next-1
+[TRG]    _x=Screen.VPx+pfxToVPx!(Trigger.X(t))
+[TRG]    _y=Screen.VPy+pfyToVPy!(Trigger.Y(t))
+[TRG]    frame _x,_y,Trigger.W(t),Trigger.H(t)
+[TRG]  next
   endif
 
+  blit 0,0,0,0,Screen.W,Screen.VPy,PAGE_DASHBRD,0 'Dashboard
+  Game.drawRadar
+  Game.updateDash
+ 
   Heli.moveAndDrawShots
   Humans.draw
-  Foe.draw
+  Portal.draw
   Heli.draw
+  Foe.draw
   Tanks.moveAndDrawShots
   Tanks.draw
   Drones.draw
+  Fx.draw
   Explosion.draw
-  Event.draw
 end sub
 
 sub Game.drawDash
@@ -160,7 +225,7 @@ sub Game.drawDash
   prt 11,1.5,":                =",map(7)
   prt 11,2.5,";                >",map(7)
   prt 11,3.5,"<                ?",map(7)
-  prt 12,5,"NAVATRON",map(6)
+  prt 12,4.5,"NAVATRON",map(6)
   Game.updateDash
 end sub
 
@@ -183,7 +248,7 @@ sub Game.updateDash
     endif
   endif    
   if Player.Fuel<100 AND trgFuel=1 then prt 10,6,"LOW ON FUEL",map(PURPLE)
-  if Player.Fuel<2 then inc Player.dY,corrFPS!(0.1)
+  if Player.Fuel<2 then inc Player.dY,corrFPS!(0.05)
 end sub
 
 sub Game.drawRadar
@@ -202,7 +267,7 @@ sub Game.drawRadar
   if y>Radar.H-RP.H then y=Radar.H-RP.H
   Radar.VPy=y
 
-  if tst(Game.Requests,ACQ_FUELING) then inc y,RADAR.H
+  if tst(Game.Requests,ACQ_FUELING) or Game.Reactor=0 then inc y,RADAR.H
 
   blit x,y,Screen.RPx,Screen.RPy,RP.W-ox,RP.H,PAGE_RADAR,&B100
   if ox>0 then blit 0,y,Screen.RPx+RP.W-ox,Screen.RPy,ox,RP.H,PAGE_RADAR,&B100
@@ -212,12 +277,9 @@ sub Game.swapPage
   LOCAL tmp%
 
   Game.updateTime=TIMER-frameTimer
-  tmp% = Game.PDisplay
-  Game.PDisplay=Game.PBuffer
-  Game.PBuffer=tmp%
-
-  page display Game.PDisplay
-  page write Game.PBuffer
+[FPS] Game.showFPS
+  map set
+  page copy PAGE_BUFFER to PAGE_DISPLAY,I
   Game.frameTime=TIMER-frameTimer
 end sub
 
@@ -268,6 +330,10 @@ Sub Game.showFPS
   text VP.W,0,str$(int(Game.updateTime*10)/10,2,2)+"ms","R",7,,,-1
 end Sub
 
-
+sub Game.showMsg(msg$,timeVal%)
+  Game.StatusMsg=msg$
+  Game.StatusTime=TIMER+timeVal%
+  set Game.Requests,REQ_SHOWSTATUS
+end sub
 
 

@@ -6,10 +6,13 @@ OPTION EXPLICIT
 OPTION DEFAULT NONE
 
 CONST PWD$=getParent$(MM.INFO(current))
-CONST DEBUG=0
-CONST DEBUG_MAP=0
-CONST DEBUG_HELI=0
-CONST DEBUG_RECORD=0
+
+#DEFINE "[DBG]", "'"    ' Show Debug output
+#DEFINE "[FPS]", "'"    ' Show FPS
+#DEFINE "[INV]", ""     ' Player is invincable
+#DEFINE "[MAP]", "'"    ' Show map tiles and coordinates, use together with [INV]
+#DEFINE "[HXY]", "'"    ' Show Heli core and position
+#DEFINE "[TRG]", "'"    ' Show trigger areas
 
 #Include "inc/common.inc"
 #Include "inc/game.inc"
@@ -21,16 +24,17 @@ CONST DEBUG_RECORD=0
 #Include "inc/text.inc"
 #Include "inc/intro.inc"
 #Include "inc/heli.inc"
-#Include "inc/events.inc"
+#Include "inc/effects.inc"
 #Include "inc/level.inc"
 #Include "inc/tanks.inc"
 #Include "inc/humans.inc"
 #Include "inc/drones.inc"
 #Include "inc/foe.inc"
 #Include "inc/trigger.inc"
-#Include "inc/record.inc"
+#Include "inc/portal.inc"
 
 CONST MAXLIVES=5
+CONST MAXREACTORHITS=16
 
 DIM Float   Player.X    'Viewport coordinates
 DIM Float   Player.Y    ' because that is the area for the player to be
@@ -88,14 +92,10 @@ DIM Integer lock.turn
 DIM Integer ctrl,ctrlTime
 DIM Float   dX,dY
 
-if DEBUG_RECORD then Record.open
 do
   if Game.State=STATE_INTRO then
-    Intro.Show
-    do
-      key=Intro.play()
-    loop while key=0
-
+    Intro.show
+    do:key=Intro.play():loop while key=0
     if key=27 or key=asc("q") or key=asc("Q") then goto GameEnd
 
     Game.new
@@ -107,9 +107,19 @@ do
       Controls.playback 1
       Game.State=STATE_DEMO
     else
+      Playfield.VPx=Player.SpawnPt(2)
+      Playfield.VPy=Player.SpawnPt(3)
       Controls.playback 0
       Game.State=STATE_LEVEL
     endif
+  endif
+
+  if Game.State=STATE_VICTORY then
+    Intro.victory
+    do:key=Intro.play():loop while key=0
+    if key=27 or key=asc("q") or key=asc("Q") then goto GameEnd
+
+    Game.State=STATE_INTRO
   endif
 
   Game.clrScreen
@@ -141,18 +151,14 @@ do
   endif
 
   if Game.State=STATE_GAME or Game.State=STATE_DEMO then  
-    Game.updateDash
-
     ctrl=Controls.read%()
-    if DEBUG_RECORD then Record.write ctrl
-
     if (ctrl=0) then Heli.toHover(0)
 
     if (ctrl and 15)=0 then Heli.toHover(0)  ' joystick in center position
     if (ctrl and 3) =0 then lock.turn=0
 
     if (ctrl and 1) > 0 then   ' right
-      if Player.dX<1.5 then inc Player.dX,0.04
+      if Player.dX<1.5 then inc Player.dX,0.03
 
       Heli.toRight(0,lock.turn)
       ctrlTime=Controls.getTime!(CTRL_RIGHT)
@@ -160,7 +166,7 @@ do
     endif
 
     if (ctrl and 2) > 0 then   ' left
-      if Player.dX>-1.5 then inc Player.dX,-0.04
+      if Player.dX>-1.5 then inc Player.dX,-0.03
 
       Heli.toLeft(0,lock.turn)
       ctrlTime=Controls.getTime!(CTRL_LEFT)
@@ -168,11 +174,11 @@ do
     endif
 
     if (ctrl and 4) > 0 then   ' up
-      if Player.dY>-1.5 then inc Player.dY,-0.04
+      if Player.dY>-1 then inc Player.dY,-0.02
     endif
 
     if (ctrl and 8) > 0 then   ' down
-      if Player.dY<1.5 then inc Player.dY,0.04
+      if Player.dY<1 then inc Player.dY,0.02
     endif
 
     if (ctrl and 16) > 0 then  ' fire
@@ -230,25 +236,22 @@ do
   if key=27 or key=asc("q") or key=asc("Q") then exit do
   if key = 147 then save image "screenshot.bmp" ' F3 for screen shot
 
-  if DEBUG then Game.showFPS
   Game.swapPage
 loop
 
 GameEnd:
-if DEBUG_RECORD then Record.close
 mode 1
 page write 0
 print "Good Bye..."
 
 sub Player.reset()
-  Player.X=VP.W/3
-  Player.Y=20
   Player.dX=0
   Player.dY=0
   Player.lives=MAXLIVES
   Player.Fuel=99
   Player.Bonus=9999
-  Player.saveSpawnPt
+  Player.Score=0
+  Player.Rescued=0
 end sub
 
 sub Player.spawn()

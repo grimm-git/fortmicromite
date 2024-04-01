@@ -66,9 +66,9 @@ sub cmap.load(name$)
 end sub
 
 sub cmap.set(reg%,color%)
-  cmap.clut(reg%)=color%
+  cmap.clut(reg%)=color% AND &HFFFFFF
   cmap.custom(reg%)=1
-  map(reg%)=color%
+  map(reg%)=cmap.clut(reg%)
 end sub
 
 sub cmap.setRGB(reg%,R%,G%,B%)
@@ -84,9 +84,7 @@ function cmap.isCustom(reg%) as Integer
 end function
 
 sub cmap.activate
-  if cmap.cmode<>8 then exit sub
-
-  map set
+  if cmap.cmode=8 then map set
 end sub
 
 sub cmap.reactivate
@@ -101,8 +99,8 @@ sub cmap.reactivate
 end sub
 
 function cmap.getCMode%()
-  LOCAL cm$=mid$(str$(MM.INFO(MODE)),3)
-  cmap.getCMode%=val(cm$)
+  LOCAL FLOAT m=MM.INFO(MODE)
+  cmap.getCMode%=(m-fix(m))*10
 end function
 
 
