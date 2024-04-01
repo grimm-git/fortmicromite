@@ -22,7 +22,7 @@ To change the orientation of the helicopter move the joystick in the
 desired direction and hold it for 1-2 seconds until the helicopter
 changed orientation.
 
-To board people just land close to them. After landing they will
+To bord people just land close to them. After landing they will
 start running towards the helicopter.
 
 The Colour Maximite 2 is a small self contained computer inspired by
@@ -34,5 +34,4 @@ except most of the sound effects. They are copyright by Dominik Braun who publis
 them under the Creative Commons Lizenz CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/deed.de)
 
 Have fun
-
   Matthias Grimm
