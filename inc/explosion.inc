@@ -97,7 +97,7 @@ sub Particle.draw()
         inc Particle.X(z),Particle.dX(z)
         inc Particle.Y(z),Particle.dY(z)
 
-        if Map.collision%(Particle.X(z),Particle.Y(z),8,8) then
+        if Map.objectHit(Particle.X(z),Particle.Y(z),8,8) then
           Explosion.add(Particle.X(z)+4,Particle.Y(z)+4)
           Particle.life(z)=0
           sprite hide z+1

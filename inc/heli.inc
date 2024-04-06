@@ -1,5 +1,4 @@
 
-
 CONST HELI_MAX=2
 CONST HELI_MAXSHOTS=10
 CONST HELI_MAXFUEL=1000
@@ -16,9 +15,9 @@ DIM Float   Heli.Core.H(4)= ( 15, 11,11, 11, 15)
 DIM Integer Heli.ofsB
 DIM Integer Heli.ofsE
 
-DIM Integer Heli.Trigger    'last trigger event
+DIM Integer Heli.Trigger 'last trigger event
 
-DIM Float   Heli.X(HELI_MAX)     'Playfield coordinates
+DIM Float   Heli.X(HELI_MAX)
 DIM Float   Heli.Y(HELI_MAX)
 DIM Integer Heli.State(HELI_MAX)
 DIM Integer Heli.trs(HELI_MAX)
@@ -66,7 +65,7 @@ sub Heli.reset(no%,x!,y!)
 end sub
 
 ' States                                                     
-'                        
+'
 ' forward <-> hover <-> hover <-> hover <-> forward
 '  left       left      nose      right      right
 '
@@ -81,7 +80,7 @@ sub Heli.setState(no%, newState%)
   LOCAL Integer oldState=Heli.State(no%)
 
   if (newState% <> oldState) then
-    Heli.trs(no%)=0  ' default
+    Heli.trs(no%)=0
     select case newState%
       case 1:
         Heli.seq(no%)=8
@@ -113,8 +112,8 @@ sub Heli.toHover(no%)            '0 1 2 3 4 5
 
   if Heli.trs(no%)=0 then Heli.setState(no%,hoverStates(Heli.State(no%)))
 
-  Player.dX=Player.dX*0.96:if abs(Player.dX)<0.001 then Player.dX=0  'Air drag
-  Player.dY=Player.dY*0.90:if abs(Player.dY)<0.001 then Player.dY=0  'Air drag
+  Player.dX=Player.dX*0.96:if abs(Player.dX)<0.001 then Player.dX=0 'Air drag
+  Player.dY=Player.dY*0.90:if abs(Player.dY)<0.001 then Player.dY=0
   if Player.dY=0 then Player.dY=1/9.81 'Gravitation
   if Heli.landed(no%)=1 then Player.dY=0
 end sub
@@ -161,6 +160,8 @@ end sub
 sub Heli.draw()
   LOCAL Integer t,c,r
   LOCAL Integer n,x,y,idx,ev
+  LOCAL Integer tmp
+  LOCAL Float tmpTimer
 
   for t=0 to HELI_MAX-1
     if Heli.State(t)=0 then continue for
@@ -188,9 +189,10 @@ sub Heli.draw()
       idx=Heli.State(t)-1
       x=Heli.X(t)+Heli.Core.X(idx)
       y=Heli.Y(t)+Heli.Core.Y(idx)
-      if Map.collision%(x,y,Heli.Core.W(idx),Heli.Core.H(idx)) then
-[DBG] text 0,60,"Heli destroyed!","L",7
-[INV] Heli.destroy(t)
+
+      if Map.objectHit(x,y,Heli.Core.W(idx),Heli.Core.H(idx)) then
+[DBG]   text 0,60,"Heli destroyed!","L",7
+[INV]   Heli.destroy(t)
       elseif Drones.isHit(x,y,Heli.Core.W(idx),Heli.Core.H(idx))<>-1 then
         Heli.destroy(t)
       endif
@@ -272,7 +274,7 @@ sub Heli.moveAndDrawShots()
         inc Heli.Shots.Y(t,s),corrFPS!(Heli.Shots.dY(t,s))
         _x=Heli.Shots.X(t,s):_y=Heli.Shots.Y(t,s)
 
-        hit=Map.collision%(_x,_y)
+        hit=Map.bulletHit(_x,_y)
         if isVisible%(_x,_y) then Heli.drawShot(_x,_y,hit)
         if hit then
           Heli.Shots.life(t,s)=0

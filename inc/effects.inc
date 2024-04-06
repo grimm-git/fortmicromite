@@ -51,16 +51,16 @@ sub Fx.draw()
 
   if TIMER-tactTimer>Fx.tact then
     tactTimer=TIMER
-    inc idx:if idx>9 then idx=0
+    inc idx:if idx>19 then idx=0
 
     if tst(Fx.active,FX_SURGE) then
       if idx=1 then creg=128:set Fx.trigger,FX_SURGE
-      if idx=6 then creg=144:set Fx.trigger,FX_SURGE
+      if idx=11 then creg=144:set Fx.trigger,FX_SURGE
     else if tst(Fx.active,FX_LASER) then
-      if idx=1 then onff=onff+1 AND 1:Fx.drawLaser onff
+      if idx=1 or idx=11 then onff=onff+1 AND 1:Fx.drawLaser onff
     endif
 
-    if idx=0 or idx=5 then
+    if idx=0 or idx=5 or idx=10 or idx=15 then
       if tst(Fx.active,FX_GLOWBRK) then
         if isReady(Fx.GLOWBRK.cnt,Fx.GLOWBRK.limit) then set Fx.trigger,FX_GLOWBRK
       endif
@@ -160,15 +160,17 @@ sub Fx.drawGlowBricks()
   STATIC Float   interval
   STATIC Integer col
 
-  if NOT tst(Fx.trigger,FX_GLOWBRK) then exit sub
-
-  if col<11 and TIMER-interval>20 then
-    interval=TIMER
-    cmap.set(130,colors(col))
-    inc col
-  else
-    clr Fx.trigger,FX_GLOWBRK
-    col=0
+  if tst(Fx.trigger,FX_GLOWBRK) then
+    if TIMER-interval>20 then
+      if col<11 then
+        interval=TIMER
+        cmap.set(130,colors(col))
+        inc col
+      else
+        clr Fx.trigger,FX_GLOWBRK
+        col=0
+      endif
+    endif
   endif
 end sub
 

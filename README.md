@@ -1,7 +1,7 @@
 # Fort Micromite
 This is a game written in MMBasic for the Color Maximite 2 (CMM2)
-It is work in progress but it is feature complete. Only balancing
-and optimisation activities are missing.
+This is the first release candidate. It is feature complete and
+hopefully balanced for most players. 
 
 The goal of the game is to enter the base of Dr.Evil with your helicopter
 and destroy the base by blowing up the reactor which is deeply burried

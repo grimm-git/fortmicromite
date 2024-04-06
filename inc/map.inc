@@ -10,6 +10,9 @@ DIM Integer Map.map(Map.W,Map.H)
 DIM Integer Map.Masks(240)
 DIM Integer Map.Brick.Idx(MAXBRICKS)
 DIM Integer Map.Brick.Suc(MAXBRICKS,3)
+DIM Integer Map.TCs.Tiles(50,1)
+DIM String  Map.TCs.Cmd$(50)
+DIM Integer Map.TCs.next
 
 Map.prepareBricks()
 
@@ -76,159 +79,50 @@ sub Map.putTile(idx%,c%,r%)
 end sub
 
 ' x,y = playfield coordinates
-function Map.collision%(x!,y!,w%,h%)
+function Map.objectHit(x!,y!,w%,h%) as Integer
   LOCAL Float _x=x!,_y=y!
-  LOCAL Integer tx,ty,_tx,_ty,tile,mask
-  LOCAL Integer shot,q,idx,suc
+  LOCAL Integer tx,_tx,ty,_ty,tile,mask
+  LOCAL Integer z,rc
 [MAP]  LOCAL Float dx,dy,sw
 
   _x=rnX(x!)
   if _y<0 then exit function
   tx=int(_x/MAPTILESIZE):ty=int(_y/MAPTILESIZE)
-  shot=choice(w%=0 and h%=0,1,0)
-  
-  _ty=ty
+
+  _ty=ty  
   do
     _tx=tx:if _tx>=MAP.W then inc _tx,-MAP.W
     do
-      if _tx<0 or _tx>Map.W-1 then error "ERROR: _tx="+str$(_tx)+" tx="+str$(tx)
-      if _ty<0 or _ty>Map.H-1 then error "ERROR: _ty="+str$(_ty)+" ty="+str$(ty)
       tile=Map.map(_tx,_ty)
 
-[MAP]   dx=pfxToVPx!(x!)
-[MAP]   dy=pfyToVPy!(y!)
-[MAP]   frame (Screen.VPx+dx,Screen.VPy+dy,w%,h%)
-[MAP]   dx=pfxToVPx!(_tx*MAPTILESIZE)
-[MAP]   dy=pfyToVPy!(_ty*MAPTILESIZE)
-[MAP]   frame (Screen.VPx+dx,Screen.VPy+dy,MAPTILESIZE,MAPTILESIZE)
-[MAP]   text Screen.VPx+dx+8,Screen.VPy+dy+6,str$(tile),"C",7
-[MAP]   if sw=0 then
-[MAP]     sw=1
-[MAP]     text Screen.VPx+dx-16,Screen.VPy+dy+6,str$(_ty),"C",7
-[MAP]     text Screen.VPx+dx+8,Screen.VPy+dy-16,str$(_tx),"C",7
-[MAP]   endif
+[MAP]  dx=pfxToVPx!(x!)
+[MAP]  dy=pfyToVPy!(y!)
+[MAP]  frame (Screen.VPx+dx,Screen.VPy+dy,w%,h%)
+[MAP]  dx=pfxToVPx!(_tx*MAPTILESIZE)
+[MAP]  dy=pfyToVPy!(_ty*MAPTILESIZE)
+[MAP]  frame (Screen.VPx+dx,Screen.VPy+dy,MAPTILESIZE,MAPTILESIZE)
+[MAP]  text Screen.VPx+dx+8,Screen.VPy+dy+6,str$(tile),"C",7
+[MAP]  if sw=0 then
+[MAP]    sw=1
+[MAP]    text Screen.VPx+dx-16,Screen.VPy+dy+6,str$(_ty),"C",7
+[MAP]    text Screen.VPx+dx+8,Screen.VPy+dy-16,str$(_tx),"C",7
+[MAP]  endif
       
-      if shot then
-        select case tile
-          case 60 to 71,98,99,114:  'Bricks
-            dx=_x-tx*MAPTILESIZE:dy=_y-ty*MAPTILESIZE
-            if dx<MAPTILESIZE/2 then q=0 else q=1
-            if dy>MAPTILESIZE/2 then inc q,2
-            idx=Map.findBrick(tile)
-            suc=Map.Brick.Suc(idx,q)
-            if suc<>tile then
-              playSample 15,22050
-              Map.map(_tx,_ty)=choice(suc=0,-1,suc)
-              Map.putTile suc,_tx,_ty
-            else
-              Map.collision%=0   'hit a hole in the brick
-              exit function
-            endif
-          case 57 to 59,7,11,139:
-            Map.collision%=0   'laser don't stop bullets
+      if tile<>-1 then
+        for z=0 to Map.TCs.next-1
+          if tile>=Map.TCs.Tiles(z,0) AND tile<=Map.TCs.Tiles(z,1) then
+            rc=call("mc."+Map.TCs.Cmd$(z),tile,_tx,_ty)
+            if rc=-1 then exit for
+            Map.objectHit=rc
             exit function
-          case 180 to 192:
-            if cmap.get(tile-49)=0 then
-              Map.collision%=0
-              exit function
-            endif
-            Fx.MVBLK.dir=Fx.MVBLK.dir*-1
-          case 2,3:
-            Map.collision%=1
-            exit function
-          case 212,213,232,233:  'Reaktor
-            if Game.ReactorHits<MAXREACTORHITS then
-              inc Game.ReactorHits
-            else
-              set Game.Requests,REQ_REACTOREX
-            endif
-        end select
-      else
-        select case tile
-          case 0:
-            set Game.Requests,REQ_FUELING
-          case 2:
-            Heli.Y(0)=ty*MAPTILESIZE+9
-            Heli.landed(0)=1
-            Map.collision%=0
-            exit function
-          case 3:
-            Heli.Y(0)=ty*MAPTILESIZE+7
-            Heli.landed(0)=1
-            Map.collision%=0
-            exit function
-          case 23,24,25:
-            Map.prepareFuelStation
-            Map.collision%=0
-            exit function
-          case 20,21,22,30,31,32:
-            set Game.Requests,REQ_FUELING
-            Heli.Y(0)=ty*MAPTILESIZE+6
-            if tile>=30 then inc Heli.Y(0),5
-            Heli.landed(0)=1
-            Map.collision%=0
-            exit function
-          case 78,79:  ' Level Exit
-            Heli.Y(0)=ty*MAPTILESIZE+6
-            Heli.landed(0)=1
-            Map.prepareLevelExit
-            Map.collision%=0
-            exit function
-          case 91,223:
-            if Map.getDirection(_tx,_ty,Heli.X(0),Heli.Y(0))<3 then
-              Heli.Y(0)=ty*MAPTILESIZE+9
-              Heli.landed(0)=1
-              Player.saveSpawnPt
-              Map.collision%=0
-              exit function
-            endif
-          case 57:  'Laser -45 Grad
-            if cmap.get(129)=0 then
-              Map.collision%=0
-              exit function
-            endif
-          case 58:  'Laser 45 Grad
-            if cmap.get(128)=0 then
-              Map.collision%=0
-              exit function
-            endif
-          case 59,7,138,139:  'Laser
-            if cmap.get(128)+cmap.get(129)=0 then
-              Map.collision%=0
-              exit function
-            endif
-          case 11:   'Laser 2nd set
-            if cmap.get(144)+cmap.get(145)=0 then
-              Map.collision%=0
-              exit function
-            endif
-          case 198,218,248:
-            set Game.Requests,REQ_PORTAL
-            Map.collision%=0
-            exit function
-          case 180 to 192:
-            if cmap.get(tile-49)=0 then
-              Map.collision%=0
-              exit function
-            endif
-        end select
+          endif
+        next      
       endif
 
       if tile>0 then
-        mask=calcMask(_tx,_ty,_x,_y,choice(w%=0,4,w%),h%)
+        mask=Map.calcMask(_tx,_ty,_x,_y,choice(w%=0,4,w%),h%)
         if mask AND Map.Masks(tile) then
-          if shot then
-            select case tile
-              case 115:               'Drone
-                playSample 15,22050
-                Map.map(_tx,_ty)=-1
-                Map.putTile 0,_tx,_ty
-              case 212,213,232,233:   'Reaktor
-                dx=Screen.VPx+pfxToVPx!(800):dy=Screen.VPy+pfyToVpy!(175)
-                circle dx,dy,Game.ReactorHits/MAXREACTORHITS*6+2,,,map(WHITE),map(WHITE)
-            end select
-          endif
-          Map.collision%=1
+          Map.objectHit=1
           exit function
         endif
       endif
@@ -237,7 +131,80 @@ function Map.collision%(x!,y!,w%,h%)
     loop while _y+h%>_ty*MAPTILESIZE
     _ty=ty:inc tx
   loop while _x+w%>tx*MAPTILESIZE
-  Map.collision%=0
+  Map.objectHit=0
+end function
+
+' x,y = playfield coordinates
+function Map.bulletHit(x!,y!) as Integer
+  LOCAL Float _x,_y
+  LOCAL Integer tx,ty,tile,mask
+  LOCAL Integer q,idx,suc
+
+  Map.bulletHit=0
+
+  _x=rnX(x!):_y=y!
+  if _y<0 then exit function
+  tx=int(_x/MAPTILESIZE):ty=int(_y/MAPTILESIZE)
+  if tx>=MAP.W then inc tx,-MAP.W
+  
+  tile=Map.map(tx,ty)
+  if tile<=0 then exit function
+
+[MAP] LOCAL Float dx,dy
+[MAP] dx=pfxToVPx!(x!)
+[MAP] dy=pfyToVPy!(y!)
+[MAP] frame (Screen.VPx+dx,Screen.VPy+dy,4,4)
+[MAP] dx=pfxToVPx!(tx*MAPTILESIZE)
+[MAP] dy=pfyToVPy!(ty*MAPTILESIZE)
+[MAP] frame (Screen.VPx+dx,Screen.VPy+dy,MAPTILESIZE,MAPTILESIZE)
+[MAP] text Screen.VPx+dx+8,Screen.VPy+dy+6,str$(tile),"C",7
+      
+  select case tile
+    case 60 to 71,98,99,114:  'Bricks
+      dx=_x-tx*MAPTILESIZE:dy=_y-ty*MAPTILESIZE
+      if dx<MAPTILESIZE/2 then q=0 else q=1
+      if dy>MAPTILESIZE/2 then inc q,2
+      idx=Map.findBrick(tile)
+      suc=Map.Brick.Suc(idx,q)
+      if suc<>tile then
+        playSample 15,22050
+        Map.map(tx,ty)=choice(suc=0,-1,suc)
+        Map.putTile suc,tx,ty
+      else
+        exit function 'hit a hole in the brick
+      endif
+    case 57 to 59,7,11,139:
+      exit function   'laser don't stop bullets
+    case 180 to 192:
+      if cmap.get(tile-49)=0 then
+        exit function
+      endif
+      Fx.MVBLK.dir=Fx.MVBLK.dir*-1
+    case 2,3:
+      Map.bulletHit=1
+      exit function
+    case 212,213,232,233:  'Reaktor
+      if Game.ReactorHits<MAXREACTORHITS then
+        inc Game.ReactorHits
+      else
+        set Game.Requests,REQ_REACTOREX
+      endif
+  end select
+
+  mask=Map.calcMask(tx,ty,_x,_y,4,0)
+  if mask AND Map.Masks(tile) then
+    select case tile
+      case 115:               'Drone
+        playSample 15,22050
+        Map.map(tx,ty)=-1
+        Map.putTile 0,tx,ty
+      case 212,213,232,233:   'Reaktor
+        dx=Screen.VPx+pfxToVPx!(800):dy=Screen.VPy+pfyToVpy!(175)
+        circle dx,dy,Game.ReactorHits/MAXREACTORHITS*6+2,,,map(WHITE),map(WHITE)
+    end select
+    Map.bulletHit=1
+    exit function
+  endif
 end function
 
 function Map.getDirection(tx%,ty%,x!,y!) as Integer
@@ -259,61 +226,7 @@ function Map.getDirection(tx%,ty%,x!,y!) as Integer
   Map.getDirection=row*3+col
 end function
 
-sub Map.prepareFuelStation
-  STATIC Integer tiles(26)=(49,6,0,50,6,0,51,6,0,49,7,0,50,7,0,51,7,0,49,8,20,50,8,21,51,8,22)
-  LOCAL Integer n
-
-  for n=0 to 26 step 3
-    Map.map(tiles(n),tiles(n+1))=tiles(n+2)
-    Map.putTile tiles(n+2),tiles(n),tiles(n+1)
-  next
-end sub
-
-sub Map.resetFuelStation
-  STATIC Integer tiles(26)=(49,6,23,50,6,24,51,6,25,49,7,0,50,7,26,51,7,0,49,8,27,50,8,28,51,8,29)
-  LOCAL Integer n
-
-  for n=0 to 26 step 3
-    Map.map(tiles(n),tiles(n+1))=tiles(n+2)
-    Map.putTile tiles(n+2),tiles(n),tiles(n+1)
-  next
-end sub
-
-sub Map.prepareLevelExit
-  LOCAL Float x,y
-  LOCAL Integer tx1,tx2,ty
-
-  ty=Level.ExitY
-  tx1=Level.ExitX
-  tx2=tx1+1:if tx2>=Map.W then inc tx2,-Map.W
-
-  Map.putTile 0,tx1,ty:Map.map(tx1,ty)=1
-  Map.putTile 0,tx2,ty:Map.map(tx2,ty)=1
-  x=pfxToVPx!(tx1*MAPTILESIZE):y=pfyToVPy!(ty*MAPTILESIZE)
-
-  blit 288,48,Screen.VPx+x,Screen.VPy+y,2*MAPTILESIZE,MAPTILESIZE,PAGE_TILESET,&B100
-  set(Game.requests,REQ_NEXTLVL)
-end sub
-
-sub Map.levelExit
-  STATIC Float ti=TIMER,ofs=0
-  LOCAL Float x,y
-  LOCAL Integer tx,ty
-
-  if TIMER-ti>180 then ti=TIMER:inc ofs:inc Player.Y
-
-  if ofs<15 then
-    tx=Level.ExitX:ty=Level.ExitY
-    x=pfxToVPx!(tx*MAPTILESIZE):y=pfyToVPy!(ty*MAPTILESIZE)+ofs
-    blit 288,48,Screen.VPx+x,Screen.VPy+y,2*MAPTILESIZE,MAPTILESIZE-ofs,PAGE_TILESET,&B100
-  else
-    ofs=0
-    clr(Game.requests,REQ_NEXTLVL)
-    set(Game.requests,ACQ_NEXTLVL)
-  endif
-end sub
-
-function calcMask(tx%,ty%,x!,y!,w%,h%) as Integer
+function Map.calcMask(tx%,ty%,x!,y!,w%,h%) as Integer
   LOCAL Float x1=x!-tx%*MAPTILESIZE,x2=x1+w%
   LOCAL Float y1=y!-ty%*MAPTILESIZE,y2=y1+h%
   LOCAL Integer mask,row,n
@@ -327,10 +240,10 @@ function calcMask(tx%,ty%,x!,y!,w%,h%) as Integer
     mask=mask<<4
     if n*4<=y2 AND (n+1)*4>y1 then mask=mask OR row
   next
-  calcMask=mask
+  Map.calcMask=mask
 end function
 
-function calcTileMask(tile%) as Integer
+function Map.calcTileMask(tile%) as Integer
   LOCAL Integer addr=MM.INFO(Page Address PAGE_TILESET)
   LOCAL Integer col=tile% mod 20
   LOCAL Integer row=fix(tile%/20)
@@ -352,7 +265,7 @@ function calcTileMask(tile%) as Integer
     next
     inc addr,4*320
   next
-  calcTileMask=mask
+  Map.calcTileMask=mask
 end function
 
 function Map.findBrick(tile%) AS Integer

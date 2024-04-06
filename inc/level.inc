@@ -35,7 +35,7 @@ sub Level.load(level%)
 
   name$="lvl/"+str$(level%)+"."
   load data name$+"tiles", MM.INFO(Page Address PAGE_TILESET)
-  for n=0 to 240:map.Masks(n)=calcTileMask(n):next
+  for n=0 to 240:map.Masks(n)=Map.calcTileMask(n):next
 
   Map.load name$+"map"
   load data name$+"radar", MM.INFO(Page Address PAGE_RADAR)
@@ -43,12 +43,14 @@ sub Level.load(level%)
 end sub
 
 sub Level.init(level%)
-  LOCAL String cmd$,fx$
+  LOCAL String cmd$,arg$
   LOCAL Integer arg1,arg2,arg3,arg4,arg5,arg6
   LOCAL Integer idx
 
   Fx.active=0
   Level.Foe.next=0
+  Map.TCs.next=0
+
   select case level%
     case 1:
       Player.SpawnPt(2)=(Playfield.W-VP.W)/2
@@ -70,6 +72,13 @@ sub Level.init(level%)
         read arg1,arg2
         Player.SpawnPt(0)=arg1
         Player.SpawnPt(1)=arg2
+      case "B":  'Bullet
+      case "C":  'Command
+        read arg1,arg2,arg$
+        Map.TCs.Tiles(Map.TCs.next,0)=arg1 'min
+        Map.TCs.Tiles(Map.TCs.next,1)=arg2 'max
+        Map.TCs.Cmd$(Map.TCs.next)=arg$    'cmd
+        inc Map.TCs.next
       case "E":  'Exit
         read arg1,arg2
         Level.ExitX=arg1
@@ -95,8 +104,8 @@ sub Level.init(level%)
         read arg1,arg2,arg3,arg4,arg5,arg6
         Trigger.add arg1,arg2,arg3,arg4,arg5,arg6
       case "X":  'fX'
-        read fx$
-        call "Fx.install"+fx$
+        read arg$
+        call "Fx.install"+arg$
     end select
   loop
 end sub
@@ -110,7 +119,7 @@ sub Level.addDrone(y%,minX%,maxX%)
 end sub
 
 sub Level.addHumans(cnt%,y%,minX%,maxX%)
-  STATIC Integer tiles(9)=(80,92,100,122,123,163,173,173,175,225)
+  STATIC Integer tiles(11)=(80,86,92,100,104,122,123,163,173,173,175,225)
   LOCAL Integer x,ofs
 
   inc Level.Humans,cnt%
@@ -150,8 +159,19 @@ DATA "T",0,180,70,16,REQ_SPAWNFOE,1      ' it wraps around Playfield.W
 DATA "X","GLOWBRICKS",14
 DATA "X","LASER"
 DATA "X","MOVINGBLOCKS",&H406080,2,&B11100000
-DATA "X","GATEBLOCKS",&H406080,7
+DATA "X","GATEBLOCKS",&H406080,11
 DATA "X","EXITBLOCKS",&H406080
+DATA "C",0,0,"Fueling"
+DATA "C",2,2,"landOnGrass"
+DATA "C",20,22,"refuelAtMainStation"
+DATA "C",23,25,"prepFuelStation"
+DATA "C",30,32,"refuelAtSubStation"
+DATA "C",57,57,"laser45N"
+DATA "C",58,58,"laser45P"
+DATA "C",59,59,"laser45PN"
+DATA "C",78,79,"prepLevelExit"
+DATA "C",91,91,"landOnPlatform"
+DATA "C",180,192,"movingBlock"
 DATA "END"
 Level2:
 DATA "MACHINES HELL",3
@@ -175,6 +195,24 @@ DATA "X","GLOWBRICKS",14
 DATA "X","SURGE"
 DATA "X","MOVINGBLOCKS",&H406080,2,&B11110000
 DATA "X","EXITBLOCKS",&H406080
+DATA "C",7,7,"laser0PN"
+DATA "C",2,2,"landOnGrass"
+DATA "C",3,3,"landOnBlk"
+DATA "C",11,11,"laser45PN"
+DATA "C",30,32,"refuelAtSubStation"
+DATA "C",40,41,"movingBlockC1"
+DATA "C",46,47,"movingBlockC1"
+DATA "C",42,43,"movingBlockC2"
+DATA "C",48,49,"movingBlockC2"
+DATA "C",44,45,"movingBlockC3"
+DATA "C",51,52,"movingBlockC3"
+DATA "C",78,79,"prepLevelExit"
+DATA "C",138,139,"laser45PN"
+DATA "C",180,192,"movingBlock"
+DATA "C",198,198,"openPortal"
+DATA "C",218,218,"openPortal"
+DATA "C",223,223,"landOnPlatform"
+DATA "C",248,248,"openPortal"
 DATA "END"
 
 

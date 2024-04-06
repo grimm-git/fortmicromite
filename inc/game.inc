@@ -84,6 +84,10 @@ sub Game.new
   Game.Level=1
   Game.Reactor=1
   Game.ReactorHits=0
+
+  Level.Humans=0
+  Heli.X(0)=800
+  Heli.Y(0)=0
 end sub
 
 sub Game.clrScreen
@@ -104,6 +108,7 @@ sub Game.draw
   LOCAL Float _x,_y
 
   if Game.State=STATE_GAME or Game.State=STATE_DEMO then
+
     if tst(Game.Requests,REQ_FUELING) then
       clr Game.Requests,REQ_FUELING
       set Game.Requests,ACQ_FUELING
@@ -113,15 +118,19 @@ sub Game.draw
         timer1=TIMER
       endif
     elseif tst(Game.Requests,ACQ_FUELING) then
-      if TIMER-timer1>3000 then    ' delay restorage of fuel station for 3 seconds
+      if Game.Level=1 then
+        if TIMER-timer1>3000 then 'wait 3 seconds and
+          mc.resetFuelStation     ' then reset the fuel station
+          clr Game.Requests,ACQ_FUELING
+          interval1=10
+        endif
+      else
         clr Game.Requests,ACQ_FUELING
-        Map.resetFuelStation
-        interval1=10
       endif
     endif
 
     if tst(Game.Requests,REQ_NEXTLVL) then
-      Map.LevelExit
+      mc.doLevelExit 'Exit animation
     elseif tst(Game.Requests,ACQ_NEXTLVL) then
       clr Game.Requests,ACQ_NEXTLVL
       inc Game.Level

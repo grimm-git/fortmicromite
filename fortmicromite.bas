@@ -18,6 +18,7 @@ CONST PWD$=getParent$(MM.INFO(current))
 #Include "inc/game.inc"
 #Include "inc/cmap.inc"
 #Include "inc/map.inc"
+#Include "inc/mapcalls.inc"
 #Include "inc/explosion.inc"
 #include "inc/sound.inc"
 #Include "inc/controls.inc"
@@ -59,9 +60,9 @@ DIM Float   Screen.RPy=12
 DIM Integer VP.W=Screen.W-Screen.VPx  ' ViewPort
 DIM Integer VP.H=Screen.H-Screen.VPy
 DIM Integer VP.PRw=120
-DIM Integer VP.PRh=70
+DIM Integer VP.PRh=60
 DIM Integer VP.PRx=(VP.W-VP.PRw)/2
-DIM Integer VP.PRy=(VP.H-VP.PRh)/2-5
+DIM Integer VP.PRy=(VP.H-VP.PRh)/2-15
 
 DIM Integer RP.W=128                  ' RadarPort
 DIM Integer RP.H=24
@@ -233,6 +234,7 @@ do
 
   key=Controls.readKey%()
   if key=asc("f") then Player.Fuel=1000
+  if key=asc("t") then set Fx.trigger,FX_GLOWBRK
   if key=27 or key=asc("q") or key=asc("Q") then exit do
   if key = 147 then save image "screenshot.bmp" ' F3 for screen shot
 

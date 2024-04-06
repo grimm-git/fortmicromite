@@ -172,7 +172,7 @@ sub Tanks.moveAndDrawShots()
 
         if _y<0 then Tanks.Shots.life(r,s)=0:continue for
         if isVisible%(_x,_y) then Tanks.drawShot(_x,_y)
-        if Map.collision%(_x,_y) then
+        if Map.bulletHit(_x,_y) then
           Tanks.Shots.life(r,s)=0
         else
           for n=0 to HELI_MAX-1
